@@ -1,0 +1,132 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    direction: rtl;
+  }
+  body {
+    font-family: 'Cairo', sans-serif;
+    direction: rtl;
+  }
+  * {
+    font-family: 'Cairo', sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[#CE1126] hover:bg-[#b00e21] text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center gap-2 justify-center text-sm;
+  }
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-gray-700 font-bold py-2 px-4 rounded-lg border border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center gap-2 justify-center text-sm;
+  }
+  .btn-success {
+    @apply bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center gap-2 justify-center text-sm;
+  }
+  .btn-warning {
+    @apply bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center gap-2 justify-center text-sm;
+  }
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center gap-2 justify-center text-sm;
+  }
+  .btn-whatsapp {
+    @apply bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md inline-flex items-center gap-2 justify-center text-sm;
+  }
+  .input-field {
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#CE1126] focus:border-transparent transition-all text-sm;
+  }
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-4;
+  }
+  .stat-card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-4 transition-all hover:shadow-md;
+  }
+}
+
+/* شريط التمرير */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #CE1126;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b00e21;
+}
+
+/* تنسيقات الطباعة */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    direction: rtl;
+  }
+  @page {
+    margin: 1cm;
+  }
+}
+
+.print-only {
+  display: none;
+}
+
+/* مستندات الانضباط الطلابي (A4) */
+.doc-sheet {
+  background: #fff;
+  color: #111;
+  width: 100%;
+  max-width: 21cm;
+  margin: 0 auto;
+  padding: 1.2cm;
+  border: 1px solid #d1d5db;
+  box-sizing: border-box;
+}
+@media print {
+  .doc-sheet {
+    border: none;
+    max-width: none;
+    padding: 0;
+    page-break-inside: avoid;
+  }
+  @page {
+    size: A4;
+  }
+}
+
+/* أنماط الألوان - علم البحرين */
+:root {
+  --bh-red: #CE1126;
+  --bh-white: #ffffff;
+}
+
+/* تأثيرات حركية */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 500px; opacity: 1; }
+}
+
+.slide-down {
+  animation: slideDown 0.3s ease-out;
+}
