@@ -2,8 +2,8 @@ import type { DocModel } from '@/lib/discipline/templates';
 import type { SchoolSettings } from '@/lib/discipline/types';
 
 export default function DocView({
-  model, settings, docNo, createdAt, approved,
-}: { model: DocModel; settings: SchoolSettings; docNo?: string; createdAt?: string; approved?: boolean }) {
+  model, settings, docNo, createdAt,
+}: { model: DocModel; settings: SchoolSettings; docNo?: string; createdAt?: string }) {
   return (
     <div className="doc-sheet">
       <div className="text-center mb-3">
@@ -27,8 +27,6 @@ export default function DocView({
           {docNo ? `رقم المستند: ${docNo}` : 'رقم المستند: يُمنح عند الحفظ'}
           {' — '}
           {createdAt ? `تاريخ الإنشاء: ${createdAt}` : ''}
-          {' — '}
-          <b>{approved ? 'مستند معتمد' : 'مسودة غير معتمدة'}</b>
         </p>
         <p className="text-[10px] text-gray-600">
           نموذج داخلي أنشأه برنامج «محمد الفاتح» وليس نموذجًا رسميًا صادرًا عن الوزارة

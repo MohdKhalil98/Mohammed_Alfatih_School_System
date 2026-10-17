@@ -1,10 +1,11 @@
-export type Role = 'admin' | 'principal' | 'recorder' | 'committee' | 'viewer';
+export type Role = 'admin' | 'supervisor';
 
 export type Profile = {
   user_id: string;
   full_name: string;
   role: Role;
   active: boolean;
+  email?: string | null;
 };
 
 export type Category = {
@@ -40,8 +41,7 @@ export type Violation = {
 };
 
 export type IncidentStatus =
-  | 'new' | 'verifying' | 'in_progress' | 'referred'
-  | 'pending_approval' | 'decided' | 'followup_complete' | 'closed';
+  | 'new' | 'closed';
 
 export type Incident = {
   id: string;

@@ -3,10 +3,12 @@ import { Settings } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast';
 import { useDiscipline } from '@/lib/discipline/data';
-import { ROLE_LABELS, STAGES, can } from '@/lib/discipline/constants';
-import type { Profile, Role, SchoolSettings } from '@/lib/discipline/types';
+import { can } from '@/lib/discipline/constants';
+import type { SchoolSettings } from '@/lib/discipline/types';
 import { Badge, Field, Notice, PageTitle, dbError, fmtDate } from '@/components/discipline/ui';
 import type { PageProps } from './props';
+import ClassesManager from './ClassesManager';
+import UsersManager from './UsersManager';
 
 const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
 
@@ -14,17 +16,13 @@ type AuditRow = { id: number; at: string; user_name: string | null; actor_role: 
 
 export default function SettingsPage({ role }: PageProps) {
   const { show } = useToast();
-  const { settings, classes, holidays, reload } = useDiscipline();
+  const { settings, holidays, reload } = useDiscipline();
   const [s, setS] = useState<SchoolSettings>(settings);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
-  const [newUser, setNewUser] = useState({ email: '', name: '', role: 'recorder' as Role });
   const [holiday, setHoliday] = useState('');
   const editable = can.settings(role);
 
   const loadAdmin = useCallback(async () => {
-    const p = await supabase.from('profiles').select('user_id, full_name, role, active').order('full_name');
-    setProfiles((p.data ?? []) as Profile[]);
     if (can.audit(role)) {
       const a = await supabase.from('audit_log').select('id,at,user_name,actor_role,operation,table_name,details').order('at', { ascending: false }).limit(50);
       setAudit((a.data ?? []) as AuditRow[]);
@@ -55,27 +53,6 @@ export default function SettingsPage({ role }: PageProps) {
     reload();
   }
 
-  async function saveClass(id: string, stage: string, grade: string) {
-    const { error } = await supabase.from('classes').update({ stage: stage || null, grade_level: grade || null }).eq('id', id);
-    if (error) return show(dbError(error), 'error');
-    show('تم حفظ بيانات الفصل', 'success');
-    reload();
-  }
-
-  async function addUser() {
-    const { error } = await supabase.rpc('admin_add_profile', { p_email: newUser.email.trim(), p_name: newUser.name.trim(), p_role: newUser.role });
-    if (error) return show(dbError(error), 'error');
-    show('تمت إضافة صلاحية المستخدم', 'success');
-    setNewUser({ email: '', name: '', role: 'recorder' });
-    loadAdmin();
-  }
-
-  async function updateProfile(p: Profile, patch: Partial<Profile>) {
-    const { error } = await supabase.from('profiles').update(patch).eq('user_id', p.user_id);
-    if (error) return show(dbError(error), 'error');
-    loadAdmin();
-  }
-
   async function addHoliday() {
     if (!holiday) return;
     const { error } = await supabase.from('holidays').insert({ holiday_date: holiday });
@@ -87,7 +64,7 @@ export default function SettingsPage({ role }: PageProps) {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 fade-in space-y-5">
       <PageTitle icon={<Settings className="w-6 h-6" />} title="إعدادات الانضباط والصلاحيات" />
-      {!editable && <Notice tone="blue">التعديل متاح لمدير المدرسة أو مدير النظام.</Notice>}
+      {!editable && <Notice tone="blue">التعديل متاح لمدير النظام فقط.</Notice>}
 
       <section className="card space-y-3">
         <h2 className="font-bold">بيانات المدرسة والطباعة</h2>
@@ -147,49 +124,9 @@ export default function SettingsPage({ role }: PageProps) {
         )}
       </section>
 
-      <section className="card space-y-2">
-        <h2 className="font-bold">المراحل والصفوف للفصول</h2>
-        <p className="text-sm text-gray-600">حدّد المرحلة والصف لكل فصل ليُربط بنطاق انطباق المخالفات.</p>
-        <div className="space-y-2">
-          {classes.map((c) => (
-            <ClassRow key={c.id} cls={c} editable={editable} onSave={saveClass} />
-          ))}
-        </div>
-      </section>
+      <ClassesManager editable={editable} />
 
-      <section className="card space-y-3">
-        <h2 className="font-bold">المستخدمون والأدوار</h2>
-        <table className="w-full text-sm">
-          <tbody>
-            {profiles.map((p) => (
-              <tr key={p.user_id} className="border-t border-gray-100">
-                <td className="p-2">{p.full_name}</td>
-                <td className="p-2">
-                  <select className="input-field !w-auto" disabled={!can.admin(role)} value={p.role} onChange={(e) => updateProfile(p, { role: e.target.value as Role })}>
-                    {(Object.keys(ROLE_LABELS) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                  </select>
-                </td>
-                <td className="p-2">
-                  <label className="flex items-center gap-1"><input type="checkbox" disabled={!can.admin(role)} checked={p.active} onChange={(e) => updateProfile(p, { active: e.target.checked })} /> مفعّل</label>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {can.admin(role) && (
-          <div className="border-t pt-3 space-y-2">
-            <p className="text-sm text-gray-600">أنشئ المستخدم أولًا من لوحة Supabase (Authentication ← Users)، ثم اربطه بدور هنا بالبريد نفسه.</p>
-            <div className="grid sm:grid-cols-4 gap-2">
-              <input className="input-field" dir="ltr" placeholder="البريد الإلكتروني" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
-              <input className="input-field" placeholder="الاسم الكامل" value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} />
-              <select className="input-field" value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value as Role })}>
-                {(Object.keys(ROLE_LABELS) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-              </select>
-              <button className="btn-primary" onClick={addUser}>ربط المستخدم</button>
-            </div>
-          </div>
-        )}
-      </section>
+      {can.admin(role) && <UsersManager />}
 
       {can.audit(role) && (
         <section className="card">
@@ -213,22 +150,6 @@ export default function SettingsPage({ role }: PageProps) {
           </div>
         </section>
       )}
-    </div>
-  );
-}
-
-function ClassRow({ cls, editable, onSave }: { cls: { id: string; name: string; stage: string | null; grade_level: string | null }; editable: boolean; onSave: (id: string, stage: string, grade: string) => void }) {
-  const [stage, setStage] = useState(cls.stage ?? '');
-  const [grade, setGrade] = useState(cls.grade_level ?? '');
-  return (
-    <div className="grid sm:grid-cols-4 gap-2 items-center">
-      <span className="font-semibold text-sm">{cls.name}</span>
-      <select className="input-field" disabled={!editable} value={stage} onChange={(e) => setStage(e.target.value)}>
-        <option value="">المرحلة</option>
-        {STAGES.map((x) => <option key={x}>{x}</option>)}
-      </select>
-      <input className="input-field" disabled={!editable} placeholder="الصف (مثال: الأول الإعدادي)" value={grade} onChange={(e) => setGrade(e.target.value)} />
-      {editable && <button className="btn-secondary" onClick={() => onSave(cls.id, stage, grade)}>حفظ</button>}
     </div>
   );
 }

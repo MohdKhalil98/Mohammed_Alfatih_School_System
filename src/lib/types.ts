@@ -21,6 +21,7 @@ export type AttendanceRow = {
   date: string;
   status: AttendanceStatus;
   note?: string | null;
+  excuse_file_path?: string | null;
   created_at?: string;
 };
 

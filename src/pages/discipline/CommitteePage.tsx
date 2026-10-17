@@ -117,9 +117,6 @@ function ReferralForm({
       : supabase.from('committee_referrals').insert(payload);
     const { error } = await q;
     if (error) return show(dbError(error), 'error');
-    if (!initial) {
-      await supabase.from('incidents').update({ status: 'referred' }).eq('id', inc.id);
-    }
     show('تم حفظ الإحالة', 'success');
     onSaved();
   }
@@ -133,9 +130,6 @@ function ReferralForm({
   return (
     <Modal title={initial ? `الإحالة ${initial.referral_no}` : 'إحالة جديدة إلى اللجنة'} onClose={onClose} wide>
       <div className="space-y-3 text-sm">
-        {!can.approve(role) && (
-          <Notice tone="blue">تسجيل القرار النهائي واعتماده متاح لمدير المدرسة أو مدير النظام فقط، وتُرفض محاولة غيرهم من قاعدة البيانات.</Notice>
-        )}
         <Field label="الواقعة" required>
           <select className="input-field" disabled={!!initial || readOnly} value={inp('incident_id')} onChange={(e) => set('incident_id', e.target.value)}>
             <option value="">اختر الواقعة</option>
@@ -165,7 +159,7 @@ function ReferralForm({
           <Field label="المسؤول الذي راجع التوصية"><input className="input-field" disabled={readOnly} value={inp('reviewer_name')} onChange={(e) => set('reviewer_name', e.target.value)} /></Field>
           <Field label="جهة الاعتماد"><input className="input-field" disabled={readOnly} value={inp('approving_authority')} onChange={(e) => set('approving_authority', e.target.value)} /></Field>
         </div>
-        {can.approve(role) && (
+        {can.write(role) && (
           <div className="grid sm:grid-cols-2 gap-3 border-t pt-3">
             <Field label="القرار النهائي"><textarea className="input-field" rows={2} value={inp('final_decision')} onChange={(e) => set('final_decision', e.target.value)} /></Field>
             <Field label="تاريخ القرار"><input type="date" className="input-field" value={inp('decision_date')} onChange={(e) => set('decision_date', e.target.value)} /></Field>

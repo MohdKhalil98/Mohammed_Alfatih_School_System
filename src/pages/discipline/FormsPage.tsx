@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Printer, Save, CheckCircle2 } from 'lucide-react';
+import { Printer, Save } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast';
 import { useAuth } from '@/lib/discipline/auth';
@@ -136,24 +136,13 @@ export default function FormsPage({ role, param }: PageProps) {
       incident_id: incidentId || null,
       referral_id: referralId || null,
       summons_id: summonsId || null,
-      status: 'draft',
+      status: 'approved',
       content: { model },
     }).select('*').single();
     if (error) return show(dbError(error), 'error');
     setSaved(data as DocRow);
     loadDocs();
-    show(`تم إنشاء المستند ${data.doc_no} (مسودة)`, 'success');
-  }
-
-  async function approveDoc() {
-    if (!saved) return;
-    const { data, error } = await supabase.from('documents')
-      .update({ status: 'approved', approved_by: (await supabase.auth.getUser()).data.user?.id, approved_at: new Date().toISOString() })
-      .eq('id', saved.id).select('*').single();
-    if (error) return show(dbError(error), 'error');
-    setSaved(data as DocRow);
-    loadDocs();
-    show('تم اعتماد المستند', 'success');
+    show(`تم إنشاء المستند ${data.doc_no}`, 'success');
   }
 
   async function print() {
@@ -212,13 +201,10 @@ export default function FormsPage({ role, param }: PageProps) {
         )}
         <div className="flex flex-wrap gap-2 items-center">
           {!saved ? (
-            can.write(role) && <button className="btn-primary" onClick={saveDoc} disabled={!ready}><Save className="w-4 h-4" /> إنشاء المستند (مسودة برقم فريد)</button>
+            can.write(role) && <button className="btn-primary" onClick={saveDoc} disabled={!ready}><Save className="w-4 h-4" /> إنشاء المستند (برقم فريد)</button>
           ) : (
             <>
-              <Badge tone={saved.status === 'approved' ? 'green' : 'amber'}>{saved.doc_no} — {saved.status === 'approved' ? 'معتمد' : 'مسودة'}</Badge>
-              {saved.status === 'draft' && can.approve(role) && (
-                <button className="btn-success" onClick={approveDoc}><CheckCircle2 className="w-4 h-4" /> اعتماد المستند</button>
-              )}
+              <Badge tone={saved.status === 'approved' ? 'green' : 'amber'}>{saved.doc_no}</Badge>
             </>
           )}
           <button className="btn-secondary" onClick={print} disabled={!saved}><Printer className="w-4 h-4" /> طباعة / حفظ PDF</button>
@@ -232,7 +218,6 @@ export default function FormsPage({ role, param }: PageProps) {
           settings={settings}
           docNo={saved?.doc_no}
           createdAt={saved ? fmtDate(saved.created_at) : undefined}
-          approved={saved?.status === 'approved'}
         />
       )}
 
@@ -252,7 +237,7 @@ export default function FormsPage({ role, param }: PageProps) {
                 }}>{d.doc_no}</button>
                 <span>{DOC_TYPES.find((t) => t.key === d.doc_type)?.label}</span>
                 <span className="text-gray-500">{studentOf(d.student_id)?.name}</span>
-                <Badge tone={d.status === 'approved' ? 'green' : 'amber'}>{d.status === 'approved' ? 'معتمد' : 'مسودة'}</Badge>
+                
               </li>
             ))}
           </ul>

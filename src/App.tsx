@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import Header from '@/components/Header';
 import Toast from '@/components/Toast';
+import SchoolBanner from '@/components/SchoolBanner';
 import { ToastProvider, useToast } from '@/lib/toast';
-import { isDisciplinePage, type PageKey } from '@/lib/nav';
-import { AuthProvider } from '@/lib/discipline/auth';
+import { canOpenPage, isDisciplinePage, type PageKey } from '@/lib/nav';
+import { AuthProvider, useAuth } from '@/lib/discipline/auth';
+import Login from '@/pages/Login';
 import DisciplineShell from '@/pages/discipline/DisciplineShell';
 import Home from '@/pages/Home';
 import Classes from '@/pages/Classes';
@@ -16,6 +18,7 @@ import Backup from '@/pages/Backup';
 
 function AppContent() {
   const { toasts, dismiss } = useToast();
+  const { profile } = useAuth();
   const [currentPage, setCurrentPage] = useState<PageKey>('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -28,6 +31,7 @@ function AppContent() {
   }
 
   function renderPage() {
+    if (!canOpenPage(currentPage, profile?.role)) return <Home onNavigate={handleNavigate} />;
     if (isDisciplinePage(currentPage)) {
       return <DisciplineShell page={currentPage} param={pageParam} onNavigate={handleNavigate} />;
     }
@@ -54,13 +58,15 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 lg:flex">
       <Header
         currentPage={currentPage}
         onNavigate={handleNavigate}
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
       />
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+      <SchoolBanner />
       <main className="flex-1">
         {renderPage()}
       </main>
@@ -69,16 +75,38 @@ function AppContent() {
         <p>مملكة البحرين - وزارة التربية والتعليم - مدرسة أحمد الفاتح الإعدادية للبنين</p>
         <p className="text-xs text-gray-400 mt-1">سجل الحضور والغياب الطلابي</p>
       </footer>
+      </div>
       <Toast toasts={toasts} onDismiss={dismiss} />
     </div>
   );
+}
+
+function AuthGate() {
+  const { session, profile, loading, signOut } = useAuth();
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-500">جارٍ التحميل...</div>;
+  }
+  if (!session) return <Login />;
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="card max-w-md w-full space-y-3 text-center">
+          <p className="font-bold text-gray-800">حسابك غير مفعّل</p>
+          <p className="text-sm text-gray-600">تم تسجيل الدخول لكن لا توجد صلاحية مفعّلة لحسابك. يرجى مراجعة مدير النظام.</p>
+          <button className="btn-secondary" onClick={() => signOut()}>تسجيل الخروج</button>
+        </div>
+      </div>
+    );
+  }
+  return <AppContent />;
 }
 
 export default function App() {
   return (
     <ToastProvider>
       <AuthProvider>
-        <AppContent />
+        <AuthGate />
       </AuthProvider>
     </ToastProvider>
   );

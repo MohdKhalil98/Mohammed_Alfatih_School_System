@@ -62,3 +62,62 @@ export const DISCIPLINE_ITEMS: NavItem[] = [
 export function isDisciplinePage(key: PageKey): boolean {
   return key.startsWith('d-');
 }
+
+const ALL_ITEMS = [...NAV_ITEMS, ...DISCIPLINE_ITEMS];
+
+function item(key: PageKey, label?: string): NavItem {
+  const found = ALL_ITEMS.find((i) => i.key === key);
+  if (!found) throw new Error(`Unknown nav key: ${key}`);
+  return label ? { ...found, label } : found;
+}
+
+export type NavGroup = { title: string; items: NavItem[] };
+
+// هيكل القائمة الجانبية
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    title: 'الرئيسية والتقارير',
+    items: [
+      item('home'),
+      item('daily-report'),
+      item('monthly-report'),
+      item('d-reports'),
+      item('backup'),
+    ],
+  },
+  {
+    title: 'شؤون الطلاب والحضور',
+    items: [
+      item('classes'),
+      item('students', 'سجل الطلاب'),
+      item('d-search'),
+      item('attendance', 'الحضور والغياب'),
+      item('student-record'),
+      item('d-student', 'الملف السلوكي للطالب'),
+    ],
+  },
+  {
+    title: 'المخالفات والانضباط',
+    items: [
+      item('d-dashboard'),
+      item('d-new', 'تسجيل مخالفة'),
+      item('d-incidents'),
+      item('d-catalog'),
+    ],
+  },
+  {
+    title: 'الإجراءات واللجان',
+    items: [item('d-actions'), item('d-summons'), item('d-committee')],
+  },
+  {
+    title: 'إدارة النظام',
+    items: [item('d-forms'), item('d-settings')],
+  },
+];
+
+// صفحات لمدير النظام فقط (المشرف الإداري لا يراها ولا يفتحها)
+const ADMIN_ONLY_PAGES: PageKey[] = ['classes', 'backup', 'd-settings'];
+
+export function canOpenPage(key: PageKey, role?: 'admin' | 'supervisor'): boolean {
+  return role === 'admin' || !ADMIN_ONLY_PAGES.includes(key);
+}

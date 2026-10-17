@@ -1,11 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
-import type { Profile } from './types';
+import { getViewAs, storeViewAs, supabase } from '@/lib/supabase';
+import type { Profile, Role } from './types';
+
 
 type AuthValue = {
   session: Session | null;
-  profile: Profile | null;
+  profile: Profile | null; // الدور الفعّال في الواجهة (قد يختلف عن الفعلي عند «عرض كمشرف»)
+  realRole: Role | null;
+  viewAs: Role | null;
+  setViewAs: (role: Role | null) => void;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -15,7 +19,8 @@ const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [realProfile, setProfile] = useState<Profile | null>(null);
+  const [viewAs, setViewAsState] = useState<Role | null>(getViewAs);
   const [loading, setLoading] = useState(true);
 
   const loadProfile = useCallback(async (s: Session | null) => {
@@ -57,9 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const setViewAs = useCallback((role: Role | null) => {
+    setViewAsState(role);
+    storeViewAs(role === 'supervisor' ? 'supervisor' : null);
+  }, []);
+
+  // التبديل متاح لمدير النظام فقط، ويغيّر شكل الواجهة وصلاحياتها المعروضة
+  const profile = useMemo<Profile | null>(
+    () => (realProfile && realProfile.role === 'admin' && viewAs ? { ...realProfile, role: viewAs } : realProfile),
+    [realProfile, viewAs]
+  );
+  const realRole = realProfile?.role ?? null;
+
   const value = useMemo(
-    () => ({ session, profile, loading, signIn, signOut }),
-    [session, profile, loading, signIn, signOut]
+    () => ({ session, profile, realRole, viewAs, setViewAs, loading, signIn, signOut }),
+    [session, profile, realRole, viewAs, setViewAs, loading, signIn, signOut]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

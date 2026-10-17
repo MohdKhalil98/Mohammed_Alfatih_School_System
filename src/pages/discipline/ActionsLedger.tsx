@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { Gavel } from 'lucide-react';
 import { useDiscipline } from '@/lib/discipline/data';
 import { useRecords } from '@/lib/discipline/records';
-import { ACTION_LABELS, APPROVAL_LABELS, pledgeLabel } from '@/lib/discipline/constants';
-import type { ActionType, ApprovalStatus } from '@/lib/discipline/types';
+import { ACTION_LABELS, pledgeLabel } from '@/lib/discipline/constants';
+import type { ActionType } from '@/lib/discipline/types';
 import { Badge, PageTitle, fmtDate, today } from '@/components/discipline/ui';
 import IncidentDetail from './IncidentDetail';
 import type { PageProps } from './props';
@@ -13,7 +13,6 @@ export default function ActionsLedger({ role, onNavigate }: PageProps) {
   const { studentOf, violationOf } = useDiscipline();
   const { incidents, actions, loading, reload } = useRecords();
   const [type, setType] = useState<ActionType | ''>('');
-  const [approval, setApproval] = useState<ApprovalStatus | ''>('');
   const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -21,21 +20,16 @@ export default function ActionsLedger({ role, onNavigate }: PageProps) {
   const rows = actions.filter(
     (a) =>
       (!type || a.action_type === type) &&
-      (!approval || a.approval_status === approval) &&
       (!onlyOverdue || (a.followup_due && a.followup_due < today() && !a.followup_result))
   );
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 fade-in">
       <PageTitle icon={<Gavel className="w-6 h-6" />} title="الإجراءات والتعهدات" sub="لتسجيل إجراء جديد افتح الواقعة من سجل المخالفات ثم «إضافة إجراء»" />
-      <div className="card mb-4 grid sm:grid-cols-4 gap-3 no-print">
+      <div className="card mb-4 grid sm:grid-cols-3 gap-3 no-print">
         <select className="input-field" value={type} onChange={(e) => setType(e.target.value as ActionType | '')}>
           <option value="">كل أنواع الإجراءات</option>
           {(Object.keys(ACTION_LABELS) as ActionType[]).map((k) => <option key={k} value={k}>{ACTION_LABELS[k]}</option>)}
-        </select>
-        <select className="input-field" value={approval} onChange={(e) => setApproval(e.target.value as ApprovalStatus | '')}>
-          <option value="">كل حالات الاعتماد</option>
-          {(Object.keys(APPROVAL_LABELS) as ApprovalStatus[]).map((k) => <option key={k} value={k}>{APPROVAL_LABELS[k]}</option>)}
         </select>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={onlyOverdue} onChange={(e) => setOnlyOverdue(e.target.checked)} />
@@ -57,7 +51,6 @@ export default function ActionsLedger({ role, onNavigate }: PageProps) {
                 <th className="p-2 text-right">الطالب</th>
                 <th className="p-2 text-right">الإجراء</th>
                 <th className="p-2 text-right">الواقعة</th>
-                <th className="p-2 text-right">الاعتماد</th>
                 <th className="p-2 text-right">المتابعة</th>
               </tr>
             </thead>
@@ -73,7 +66,6 @@ export default function ActionsLedger({ role, onNavigate }: PageProps) {
                       {ACTION_LABELS[a.action_type]} {a.pledge_no ? <Badge tone="amber">{pledgeLabel(a.pledge_no)}</Badge> : null}
                     </td>
                     <td className="p-2 text-xs">{inc?.ref_no} — {violationOf(inc?.violation_id)?.official_name}</td>
-                    <td className="p-2"><Badge tone={a.approval_status === 'approved' ? 'green' : 'gray'}>{APPROVAL_LABELS[a.approval_status]}</Badge></td>
                     <td className="p-2">
                       {a.followup_due ? (overdue ? <Badge tone="red">متأخرة منذ {fmtDate(a.followup_due)}</Badge> : fmtDate(a.followup_due)) : '—'}
                     </td>

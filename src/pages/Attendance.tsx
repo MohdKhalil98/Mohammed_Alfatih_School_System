@@ -3,12 +3,13 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast';
 import type { ClassRow, StudentRow, AttendanceStatus } from '@/lib/types';
 import { formatArabicDate, toDateString, STATUS_COLORS } from '@/lib/types';
-import { ClipboardCheck, CheckCircle2, AlertCircle, XCircle, CheckCheck, Save, Calendar } from 'lucide-react';
+import { ClipboardCheck, CheckCircle2, AlertCircle, XCircle, CheckCheck, Save, Calendar, Paperclip, Upload, X } from 'lucide-react';
 
 type StudentAttendance = {
   student: StudentRow;
   status: AttendanceStatus;
   note: string;
+  excuseFilePath?: string | null;
   existingId?: string;
 };
 
@@ -22,6 +23,10 @@ export default function Attendance() {
   const [attendanceMap, setAttendanceMap] = useState<Map<string, StudentAttendance>>(new Map());
   const [saving, setSaving] = useState(false);
   const [hasExistingRecords, setHasExistingRecords] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<AttendanceStatus>('حاضر');
+  const [excuseStudentId, setExcuseStudentId] = useState<string | null>(null);
+  const [excuseFile, setExcuseFile] = useState<File | null>(null);
+  const [uploadingExcuse, setUploadingExcuse] = useState(false);
 
   useEffect(() => {
     loadClasses();
@@ -68,7 +73,7 @@ export default function Attendance() {
     // تحميل سجلات الحضور لهذا اليوم وهذا الصف
     const { data: attData, error: attError } = await supabase
       .from('attendance')
-      .select('id, student_id, class_id, date, status, note')
+      .select('id, student_id, class_id, date, status, note, excuse_file_path')
       .eq('class_id', selectedClassId)
       .eq('date', selectedDate);
 
@@ -89,6 +94,7 @@ export default function Attendance() {
           student,
           status: existing.status as AttendanceStatus,
           note: existing.note || '',
+          excuseFilePath: existing.excuse_file_path || null,
           existingId: existing.id,
         });
       } else {
@@ -114,6 +120,48 @@ export default function Attendance() {
     });
   }
 
+  function handleStatusClick(studentId: string, status: AttendanceStatus) {
+    setStatus(studentId, status);
+    if (status === 'غائب بعذر') {
+      setExcuseFile(null);
+      setExcuseStudentId(studentId);
+    }
+  }
+
+  function closeExcuseModal(revert: boolean) {
+    if (revert && excuseStudentId) {
+      const current = attendanceMap.get(excuseStudentId);
+      if (current && !current.excuseFilePath && current.existingId === undefined) {
+        setStatus(excuseStudentId, 'حاضر');
+      }
+    }
+    setExcuseStudentId(null);
+    setExcuseFile(null);
+  }
+
+  async function confirmExcuse() {
+    if (!excuseStudentId) return;
+    if (excuseFile) {
+      setUploadingExcuse(true);
+      const ext = excuseFile.name.split('.').pop() || 'bin';
+      const path = `${selectedDate}/${excuseStudentId}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('attendance-excuses').upload(path, excuseFile);
+      setUploadingExcuse(false);
+      if (error) {
+        show('فشل في رفع مرفق العذر', 'error');
+        return;
+      }
+      setAttendanceMap((prev) => {
+        const newMap = new Map(prev);
+        const current = newMap.get(excuseStudentId);
+        if (current) newMap.set(excuseStudentId, { ...current, excuseFilePath: path });
+        return newMap;
+      });
+    }
+    setExcuseStudentId(null);
+    setExcuseFile(null);
+  }
+
   function setNote(studentId: string, note: string) {
     setAttendanceMap((prev) => {
       const newMap = new Map(prev);
@@ -125,15 +173,18 @@ export default function Attendance() {
     });
   }
 
-  function markAllPresent() {
+  function markAll() {
     setAttendanceMap((prev) => {
       const newMap = new Map(prev);
       for (const [key, value] of newMap) {
-        newMap.set(key, { ...value, status: 'حاضر', note: '' });
+        newMap.set(key, { ...value, status: bulkStatus, note: '' });
       }
       return newMap;
     });
-    show('تم تحديد جميع الطلاب كحاضرين', 'success');
+    show(
+      bulkStatus === 'حاضر' ? 'تم تحديد جميع الطلاب كحاضرين' : 'تم تحديد جميع الطلاب كغائبين',
+      'success'
+    );
   }
 
   async function saveAttendance() {
@@ -150,7 +201,11 @@ export default function Attendance() {
         // تحديث السجل الموجود
         const { error } = await supabase
           .from('attendance')
-          .update({ status: value.status, note: value.note || null })
+          .update({
+            status: value.status,
+            note: value.note || null,
+            excuse_file_path: value.status === 'غائب بعذر' ? value.excuseFilePath || null : null,
+          })
           .eq('id', value.existingId);
         if (error) {
           errorCount++;
@@ -165,6 +220,7 @@ export default function Attendance() {
           date: selectedDate,
           status: value.status,
           note: value.note || null,
+          excuse_file_path: value.status === 'غائب بعذر' ? value.excuseFilePath || null : null,
         });
         if (error) {
           errorCount++;
@@ -288,6 +344,10 @@ export default function Attendance() {
           {/* أزرار التحكم */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
+              <button onClick={markAll} className="btn-success">
+                <CheckCheck className="w-4 h-4" />
+                اختيار الكل
+              </button>
               {hasExistingRecords && (
                 <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-200">
                   <CheckCircle2 className="w-3.5 h-3.5" />
@@ -296,10 +356,22 @@ export default function Attendance() {
               )}
             </div>
             <div className="flex gap-2">
-              <button onClick={markAllPresent} className="btn-success">
-                <CheckCheck className="w-4 h-4" />
-                تحديد الكل حاضرين
-              </button>
+              <div className="inline-flex rounded-lg border border-gray-300 overflow-hidden bg-white">
+                {([
+                  { status: 'حاضر', label: 'حاضر', active: 'bg-emerald-600 text-white' },
+                  { status: 'غائب بلا عذر', label: 'غائب', active: 'bg-red-600 text-white' },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.status}
+                    onClick={() => setBulkStatus(opt.status)}
+                    className={`px-4 py-2 text-sm font-semibold transition-all ${
+                      bulkStatus === opt.status ? opt.active : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
               <button onClick={saveAttendance} disabled={saving} className="btn-primary">
                 <Save className="w-4 h-4" />
                 {saving ? 'جارٍ الحفظ...' : 'حفظ السجلات'}
@@ -346,7 +418,7 @@ export default function Attendance() {
                         return (
                           <button
                             key={btn.status}
-                            onClick={() => setStatus(student.id, btn.status)}
+                            onClick={() => handleStatusClick(student.id, btn.status)}
                             className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${btnColor}`}
                           >
                             <Icon className="w-3.5 h-3.5" />
@@ -354,6 +426,11 @@ export default function Attendance() {
                           </button>
                         );
                       })}
+                      {att.status === 'غائب بعذر' && att.excuseFilePath && (
+                        <span className="flex items-center gap-1 text-xs text-amber-700" title="تم إرفاق العذر">
+                          <Paperclip className="w-3.5 h-3.5" />
+                        </span>
+                      )}
                       {att.status !== 'حاضر' && (
                         <input
                           type="text"
@@ -378,6 +455,54 @@ export default function Attendance() {
             </button>
           </div>
         </>
+      )}
+
+      {excuseStudentId && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+          onClick={() => closeExcuseModal(true)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl w-full max-w-md p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-800">إرفاق العذر الرسمي</h2>
+              <button onClick={() => closeExcuseModal(true)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">
+              الطالب: <span className="font-semibold">{attendanceMap.get(excuseStudentId)?.student.name}</span>
+            </p>
+            <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-amber-300 bg-amber-50 rounded-lg p-6 cursor-pointer hover:bg-amber-100 transition-colors">
+              <Upload className="w-7 h-7 text-amber-600" />
+              <span className="text-sm font-semibold text-amber-700">
+                {excuseFile ? excuseFile.name : 'اضغط لاختيار ملف العذر (صورة أو PDF)'}
+              </span>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => setExcuseFile(e.target.files?.[0] || null)}
+              />
+            </label>
+            {attendanceMap.get(excuseStudentId)?.excuseFilePath && !excuseFile && (
+              <p className="text-xs text-emerald-700 mt-2 flex items-center gap-1">
+                <Paperclip className="w-3.5 h-3.5" />
+                يوجد مرفق محفوظ مسبقًا لهذا الطالب
+              </p>
+            )}
+            <div className="flex gap-2 justify-end mt-5">
+              <button onClick={() => closeExcuseModal(true)} className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                إلغاء
+              </button>
+              <button onClick={confirmExcuse} disabled={uploadingExcuse} className="btn-primary">
+                {uploadingExcuse ? 'جارٍ الرفع...' : excuseFile ? 'رفع وتأكيد' : 'تأكيد بدون مرفق'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

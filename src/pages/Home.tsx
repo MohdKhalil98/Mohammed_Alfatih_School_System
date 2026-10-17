@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import type { PageKey } from '@/lib/nav';
 import { formatArabicDate, toDateString } from '@/lib/types';
-import { Users, CheckCircle, AlertCircle, XCircle, BookOpen, TrendingUp } from 'lucide-react';
+import { FilePlus2, Users, CheckCircle, AlertCircle, XCircle, BookOpen, TrendingUp } from 'lucide-react';
 
 type HomeProps = {
-  onNavigate: (page: 'home' | 'classes' | 'students' | 'attendance' | 'daily-report' | 'monthly-report' | 'student-record' | 'backup') => void;
+  onNavigate: (page: PageKey) => void;
 };
 
 type ClassStat = {
@@ -103,6 +104,53 @@ export default function Home({ onNavigate }: HomeProps) {
             <p className="text-sm sm:text-lg mt-1">{formatArabicDate(today)}</p>
           </div>
         </div>
+      </div>
+
+      {/* أزرار سريعة */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <button
+          onClick={() => onNavigate('attendance')}
+          className="card hover:border-[#CE1126] transition-all text-center group cursor-pointer"
+        >
+          <div className="bg-[#CE1126]/10 group-hover:bg-[#CE1126]/20 p-3 rounded-lg w-fit mx-auto mb-2 transition-all">
+            <svg className="w-6 h-6 text-[#CE1126]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          </div>
+          <p className="font-bold text-gray-700 text-sm">تسجيل الحضور</p>
+        </button>
+
+        <button
+          onClick={() => onNavigate('students')}
+          className="card hover:border-blue-500 transition-all text-center group cursor-pointer"
+        >
+          <div className="bg-blue-50 group-hover:bg-blue-100 p-3 rounded-lg w-fit mx-auto mb-2 transition-all">
+            <Users className="w-6 h-6 text-blue-600" />
+          </div>
+          <p className="font-bold text-gray-700 text-sm">إدارة الطلاب</p>
+        </button>
+
+        <button
+          onClick={() => onNavigate('d-new')}
+          className="card hover:border-rose-500 transition-all text-center group cursor-pointer"
+        >
+          <div className="bg-rose-50 group-hover:bg-rose-100 p-3 rounded-lg w-fit mx-auto mb-2 transition-all">
+            <FilePlus2 className="w-6 h-6 text-rose-600" />
+          </div>
+          <p className="font-bold text-gray-700 text-sm">تسجيل مخالفة</p>
+        </button>
+
+        <button
+          onClick={() => onNavigate('monthly-report')}
+          className="card hover:border-amber-500 transition-all text-center group cursor-pointer"
+        >
+          <div className="bg-amber-50 group-hover:bg-amber-100 p-3 rounded-lg w-fit mx-auto mb-2 transition-all">
+            <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <p className="font-bold text-gray-700 text-sm">التقرير الشهري</p>
+        </button>
       </div>
 
       {loading ? (
@@ -237,54 +285,6 @@ export default function Home({ onNavigate }: HomeProps) {
             )}
           </div>
 
-          {/* أزرار سريعة */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <button
-              onClick={() => onNavigate('attendance')}
-              className="card hover:border-[#CE1126] transition-all text-center group cursor-pointer"
-            >
-              <div className="bg-[#CE1126]/10 group-hover:bg-[#CE1126]/20 p-3 rounded-lg w-fit mx-auto mb-2 transition-all">
-                <svg className="w-6 h-6 text-[#CE1126]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-              </div>
-              <p className="font-bold text-gray-700 text-sm">تسجيل الحضور</p>
-            </button>
-
-            <button
-              onClick={() => onNavigate('students')}
-              className="card hover:border-blue-500 transition-all text-center group cursor-pointer"
-            >
-              <div className="bg-blue-50 group-hover:bg-blue-100 p-3 rounded-lg w-fit mx-auto mb-2 transition-all">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-              <p className="font-bold text-gray-700 text-sm">إدارة الطلاب</p>
-            </button>
-
-            <button
-              onClick={() => onNavigate('daily-report')}
-              className="card hover:border-emerald-500 transition-all text-center group cursor-pointer"
-            >
-              <div className="bg-emerald-50 group-hover:bg-emerald-100 p-3 rounded-lg w-fit mx-auto mb-2 transition-all">
-                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <p className="font-bold text-gray-700 text-sm">التقرير اليومي</p>
-            </button>
-
-            <button
-              onClick={() => onNavigate('monthly-report')}
-              className="card hover:border-amber-500 transition-all text-center group cursor-pointer"
-            >
-              <div className="bg-amber-50 group-hover:bg-amber-100 p-3 rounded-lg w-fit mx-auto mb-2 transition-all">
-                <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <p className="font-bold text-gray-700 text-sm">التقرير الشهري</p>
-            </button>
-          </div>
         </>
       )}
     </div>

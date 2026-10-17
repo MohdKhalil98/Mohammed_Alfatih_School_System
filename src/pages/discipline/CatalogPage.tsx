@@ -3,19 +3,17 @@ import { Library, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast';
 import { useDiscipline } from '@/lib/discipline/data';
-import { ACTION_LABELS, STAGES, STATUS_PENDING_NOTE, can } from '@/lib/discipline/constants';
+import { ACTION_LABELS, STAGES, can } from '@/lib/discipline/constants';
 import type { ActionType, Violation } from '@/lib/discipline/types';
-import { Badge, CategoryBadge, ConfirmModal, Field, Modal, Notice, PageTitle, dbError, today } from '@/components/discipline/ui';
+import { Badge, CategoryBadge, Field, Modal, Notice, PageTitle, dbError, today } from '@/components/discipline/ui';
 import type { PageProps } from './props';
 
 export default function CatalogPage({ role }: PageProps) {
-  const { show } = useToast();
   const { categories, violations, categoryOf, reload } = useDiscipline();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
   const [showOld, setShowOld] = useState(false);
   const [editing, setEditing] = useState<Violation | 'new' | null>(null);
-  const [verify, setVerify] = useState<Violation | null>(null);
 
   const rows = useMemo(
     () =>
@@ -27,17 +25,6 @@ export default function CatalogPage({ role }: PageProps) {
       ),
     [violations, q, cat, showOld]
   );
-  const pending = violations.filter((v) => v.status === 'pending_review').length;
-
-  async function confirmVerify() {
-    if (!verify) return;
-    const { error } = await supabase.from('violations_catalog').update({ status: 'verified', last_reviewed: today() }).eq('id', verify.id);
-    if (error) return show(dbError(error), 'error');
-    setVerify(null);
-    show('تم اعتماد المخالفة بعد المراجعة', 'success');
-    reload();
-  }
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 fade-in">
       <PageTitle
@@ -46,14 +33,6 @@ export default function CatalogPage({ role }: PageProps) {
         sub="لائحة الانضباط الطلابي — القرار رقم (279) لسنة 2025"
         actions={can.settings(role) && <button className="btn-primary" onClick={() => setEditing('new')}><Plus className="w-4 h-4" /> مخالفة جديدة</button>}
       />
-      {pending > 0 && (
-        <div className="mb-4">
-          <Notice>
-            {pending} مخالفة بحالة «بانتظار مراجعة واعتماد المسؤول»: مصدرها ملخص صفحة الوزارة (صياغة غير حرفية)، وأرقام البنود والنصوص المرجعية والمعالجات تُستكمل من نص اللائحة الرسمي. هذه القائمة ليست القائمة الرسمية النهائية قبل المراجعة.
-          </Notice>
-        </div>
-      )}
-
       <div className="card mb-4 grid sm:grid-cols-4 gap-3 no-print">
         <input className="input-field sm:col-span-2" placeholder="بحث بالاسم أو الرمز أو رقم المادة/البند" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="input-field" value={cat} onChange={(e) => setCat(e.target.value)}>
@@ -84,14 +63,11 @@ export default function CatalogPage({ role }: PageProps) {
                 <td className="p-2">{categoryOf(v.category_id)?.article}{v.clause ? ` — ${v.clause}` : ' — (البند غير مدخل)'}</td>
                 <td className="p-2">
                   <Badge tone={v.status === 'verified' ? 'green' : v.status === 'superseded' ? 'gray' : 'amber'}>
-                    {v.status === 'verified' ? 'معتمدة' : v.status === 'superseded' ? 'إصدار قديم' : 'بانتظار المراجعة'}
+                    {v.status === 'superseded' ? 'إصدار قديم' : 'ساري'}
                   </Badge>
                 </td>
                 <td className="p-2 whitespace-nowrap no-print">
                   <button className="text-blue-700 underline ml-2" onClick={() => setEditing(v)}>{can.settings(role) ? 'تفاصيل / تحديث' : 'تفاصيل'}</button>
-                  {can.settings(role) && v.status === 'pending_review' && (
-                    <button className="text-emerald-700 underline" onClick={() => setVerify(v)}>اعتماد بعد المراجعة</button>
-                  )}
                 </td>
               </tr>
             ))}
@@ -108,15 +84,6 @@ export default function CatalogPage({ role }: PageProps) {
             setEditing(null);
             reload();
           }}
-        />
-      )}
-      {verify && (
-        <ConfirmModal
-          title="اعتماد المخالفة"
-          message={<>أؤكد أنني طابقت «{verify.official_name}» (رقم المادة والبند والنص المرجعي والمعالجات) مع نص اللائحة الرسمية. {!verify.clause && 'تنبيه: رقم البند ما زال فارغًا.'}</>}
-          confirmLabel="اعتماد"
-          onCancel={() => setVerify(null)}
-          onConfirm={confirmVerify}
         />
       )}
     </div>
@@ -157,7 +124,7 @@ function VersionForm({ initial, canEdit, onClose, onSaved }: { initial: Violatio
       applicable_stages: f.applicable_stages,
       approval_requirements: f.approval_requirements || null,
       source: f.source || null,
-      status: 'pending_review' as const,
+      status: 'verified' as const,
       last_reviewed: today(),
     };
     if (!initial) {
@@ -173,14 +140,13 @@ function VersionForm({ initial, canEdit, onClose, onSaved }: { initial: Violatio
       const { error: e2 } = await supabase.from('violations_catalog').update({ status: 'superseded' }).eq('id', initial.id);
       if (e2) return show(dbError(e2), 'error');
     }
-    show('تم الحفظ كإصدار بانتظار الاعتماد', 'success');
+    show('تم الحفظ', 'success');
     onSaved();
   }
 
   return (
     <Modal title={initial ? `${initial.code} — إصدار ${initial.version}` : 'مخالفة جديدة'} onClose={onClose} wide>
       <div className="space-y-3 text-sm">
-        {initial?.status === 'pending_review' && <Notice>{STATUS_PENDING_NOTE}</Notice>}
         {canEdit && initial && <Notice tone="blue">الحفظ ينشئ إصدارًا جديدًا ويُبقي الإصدار الحالي في السجل دون فقد الوقائع المرتبطة به.</Notice>}
         <fieldset disabled={!canEdit} className="space-y-3">
           <div className="grid sm:grid-cols-3 gap-3">

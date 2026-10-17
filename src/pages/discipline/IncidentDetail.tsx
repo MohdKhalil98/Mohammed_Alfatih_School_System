@@ -4,8 +4,8 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/lib/toast';
 import { useDiscipline } from '@/lib/discipline/data';
 import {
-  ACTION_LABELS, APPROVAL_LABELS, APPROVER_ONLY_INCIDENT_STATUS, INCIDENT_STATUS_LABELS,
-  INCIDENT_STATUS_ORDER, STATUS_PENDING_NOTE, can, pledgeLabel,
+  ACTION_LABELS, INCIDENT_STATUS_LABELS,
+  INCIDENT_STATUS_ORDER, can, pledgeLabel,
 } from '@/lib/discipline/constants';
 import type { ActionType, Incident, IncidentAction, IncidentStatus, Role } from '@/lib/discipline/types';
 import { Badge, CategoryBadge, ConfirmModal, Field, Modal, Notice, dbError, fmtDate, today } from '@/components/discipline/ui';
@@ -60,13 +60,6 @@ export default function IncidentDetail({
     onChanged?.();
   }
 
-  async function approveAction(a: IncidentAction) {
-    const { error } = await supabase.from('incident_actions').update({ approval_status: 'approved' }).eq('id', a.id);
-    if (error) return show(dbError(error), 'error');
-    show('تم اعتماد الإجراء', 'success');
-    load();
-  }
-
   async function openFile(f: Attachment) {
     const { data, error } = await supabase.storage.from('discipline-evidence').createSignedUrl(f.file_path, 60);
     if (error || !data) return show('تعذر فتح المرفق', 'error');
@@ -103,7 +96,6 @@ export default function IncidentDetail({
           )}
         </div>
 
-        {violation?.status === 'pending_review' && <Notice>{STATUS_PENDING_NOTE}</Notice>}
         {repeats.length > 0 && (
           <Notice tone="red">
             مخالفة متكررة: سُجلت {repeats.length} واقعة سابقة من النوع نفسه لهذا الطالب. التكرار تنبيه للمراجعة فقط ولا يفرض عقوبة تلقائية؛ يُرجع إلى قواعد التكرار في اللائحة.
@@ -119,10 +111,6 @@ export default function IncidentDetail({
                 value={incident.status}
                 onChange={(e) => {
                   const s = e.target.value as IncidentStatus;
-                  if (APPROVER_ONLY_INCIDENT_STATUS.includes(s) && !can.approve(role)) {
-                    show('هذه الحالة متاحة لمدير المدرسة أو مدير النظام فقط', 'warning');
-                    return;
-                  }
                   setConfirm({
                     title: 'تأكيد تغيير الحالة',
                     message: `سيتم تغيير الحالة إلى «${INCIDENT_STATUS_LABELS[s]}».`,
@@ -173,9 +161,6 @@ export default function IncidentDetail({
                 <div className="flex flex-wrap gap-2 items-center mb-1">
                   <b>#{a.action_no} {ACTION_LABELS[a.action_type]}</b>
                   {a.pledge_no && <Badge tone="amber">{pledgeLabel(a.pledge_no)} (ترقيم توثيقي)</Badge>}
-                  <Badge tone={a.approval_status === 'approved' ? 'green' : a.approval_status === 'rejected' ? 'red' : 'gray'}>
-                    {APPROVAL_LABELS[a.approval_status]}
-                  </Badge>
                   <span className="text-gray-500">{fmtDate(a.action_date)} — {a.responsible_staff}</span>
                 </div>
                 <p>{a.reason}</p>
@@ -186,16 +171,6 @@ export default function IncidentDetail({
                 </p>
                 {a.followup_result && <p className="text-xs">نتيجة المتابعة: {a.followup_result}</p>}
                 {a.notes && <p className="text-xs text-gray-500">ملاحظات: {a.notes}</p>}
-                {can.approve(role) && a.approval_status !== 'approved' && (
-                  <button
-                    className="btn-success mt-2 !py-1"
-                    onClick={() =>
-                      setConfirm({ title: 'اعتماد الإجراء', message: 'سيصبح الإجراء معتمدًا ولا يمكن تعديله إلا بصلاحية.', run: () => approveAction(a) })
-                    }
-                  >
-                    اعتماد
-                  </button>
-                )}
               </div>
             ))}
           </div>
@@ -298,7 +273,7 @@ function AddAction({
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const remedyNotListed =
-    violation?.status === 'verified' && violation.allowed_remedies.length > 0 && !violation.allowed_remedies.includes(form.action_type);
+    violation && violation.allowed_remedies.length > 0 && !violation.allowed_remedies.includes(form.action_type);
 
   async function save() {
     if (!form.responsible_staff.trim() || !form.reason.trim()) {
@@ -316,7 +291,7 @@ function AddAction({
       reason: form.reason.trim(),
       relation_note: form.relation_note || null,
       document_text: form.document_text || null,
-      approval_status: 'draft',
+      approval_status: 'approved',
       guardian_notified_on: form.guardian_notified_on || null,
       executed_on: form.executed_on || null,
       followup_due: form.followup_due || null,
@@ -333,9 +308,8 @@ function AddAction({
     <Modal title="إضافة إجراء" onClose={onClose} wide>
       <div className="space-y-3 text-sm">
         <Notice tone="blue">
-          الطالب: {studentOf(incident.student_id)?.name} — {className(incident.class_id)}. تسجيل الإجراء لا يعني اعتماده؛ يبقى مسودة حتى يعتمده مدير المدرسة.
+          الطالب: {studentOf(incident.student_id)?.name} — {className(incident.class_id)}.
         </Notice>
-        {violation?.status === 'pending_review' && <Notice>{STATUS_PENDING_NOTE} تأكد من أن الإجراء ضمن المعالجات الواردة في اللائحة.</Notice>}
         {prior.length > 0 && (
           <Notice tone="red">
             لدى الطالب {prior.length} واقعة سابقة و{priorActions.length} إجراء سابق. راجعها أدناه؛ لا تُفرض عقوبة تلقائية بسبب العدد.
@@ -345,7 +319,7 @@ function AddAction({
           <ul className="max-h-28 overflow-y-auto bg-gray-50 rounded p-2 space-y-1">
             {priorActions.map((a) => (
               <li key={a.id}>
-                {fmtDate(a.action_date)} — {ACTION_LABELS[a.action_type]} {a.pledge_no ? `(${pledgeLabel(a.pledge_no)})` : ''} — {APPROVAL_LABELS[a.approval_status]}
+                {fmtDate(a.action_date)} — {ACTION_LABELS[a.action_type]} {a.pledge_no ? `(${pledgeLabel(a.pledge_no)})` : ''}
               </li>
             ))}
           </ul>

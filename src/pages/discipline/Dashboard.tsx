@@ -102,9 +102,6 @@ export default function Dashboard({ role, onNavigate }: PageProps) {
           )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="الوقائع المسجلة" value={incidents.length} onClick={() => onNavigate('d-incidents')} />
-            <Stat label="قيد التحقق" value={incidents.filter((i) => i.status === 'verifying').length} onClick={() => onNavigate('d-incidents')} />
-            <Stat label="محالة إلى اللجنة" value={incidents.filter((i) => i.status === 'referred').length} onClick={() => onNavigate('d-committee')} />
-            <Stat label="بانتظار الاعتماد" value={incidents.filter((i) => i.status === 'pending_approval').length} onClick={() => onNavigate('d-incidents')} />
             <Stat label="التعهدات المسجلة" value={actions.filter((a) => a.action_type === 'pledge').length} onClick={() => onNavigate('d-actions')} />
             <Stat label="استدعاءات أولياء الأمور" value={summons.length} onClick={() => onNavigate('d-summons')} />
             <Stat label="إجراءات متأخرة عن المتابعة" value={stats.overdue.length} onClick={() => onNavigate('d-actions')} />

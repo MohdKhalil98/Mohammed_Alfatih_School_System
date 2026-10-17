@@ -4,36 +4,26 @@ import type {
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'مدير النظام',
-  principal: 'مدير المدرسة / من يفوّضه',
-  recorder: 'موظف تسجيل الوقائع',
-  committee: 'عضو لجنة الانضباط',
-  viewer: 'قراءة وتقارير',
+  supervisor: 'المشرف الإداري',
 };
 
-// صلاحيات الواجهة (الفرض الحقيقي في سياسات RLS والمشغلات بقاعدة البيانات)
+// صلاحيات الواجهة (الفرض الحقيقي في سياسات RLS بقاعدة البيانات).
+// المشرف الإداري يكتب ويتابع ضمن صفوفه فقط، وتقيّده قاعدة البيانات بها.
 export const can = {
-  write: (r?: Role) => !!r && ['admin', 'principal', 'recorder', 'committee'].includes(r),
-  approve: (r?: Role) => !!r && ['admin', 'principal'].includes(r),
-  committee: (r?: Role) => !!r && ['admin', 'principal', 'committee'].includes(r),
-  settings: (r?: Role) => !!r && ['admin', 'principal'].includes(r),
+  write: (r?: Role) => !!r,
+  approve: (r?: Role) => r === 'admin',
+  committee: (r?: Role) => !!r,
+  settings: (r?: Role) => r === 'admin',
   admin: (r?: Role) => r === 'admin',
-  audit: (r?: Role) => !!r && ['admin', 'principal'].includes(r),
-  evidence: (r?: Role) => !!r && ['admin', 'principal', 'recorder', 'committee'].includes(r),
+  audit: (r?: Role) => r === 'admin',
+  evidence: (r?: Role) => !!r,
 };
 
 export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
   new: 'مسجلة حديثًا',
-  verifying: 'قيد التحقق',
-  in_progress: 'قيد الإجراء',
-  referred: 'محالة إلى اللجنة',
-  pending_approval: 'بانتظار الاعتماد',
-  decided: 'صدر بشأنها قرار',
-  followup_complete: 'مكتملة المتابعة',
   closed: 'مغلقة إداريًا',
 };
 export const INCIDENT_STATUS_ORDER = Object.keys(INCIDENT_STATUS_LABELS) as IncidentStatus[];
-// الحالات التي تتطلب مدير المدرسة/النظام (تطابق مشغل guard_approvals)
-export const APPROVER_ONLY_INCIDENT_STATUS: IncidentStatus[] = ['decided', 'closed'];
 
 export const ACTION_LABELS: Record<ActionType, string> = {
   guidance: 'النصح والإرشاد',
@@ -104,8 +94,6 @@ export const APPEAL_LABELS = {
 export const STAGES = ['ابتدائي', 'إعدادي', 'ثانوي'];
 export const LOCATIONS = ['الفصل', 'الطابور الصباحي', 'الساحة', 'الممر', 'المقصف', 'دورة المياه', 'الحافلة', 'المختبر', 'خارج المدرسة / نشاط', 'التعلم عن بعد', 'أخرى'];
 
-export const STATUS_PENDING_NOTE =
-  'هذه المخالفة بانتظار مراجعة واعتماد المسؤول — لم تُطابق مع النص الرسمي بعد.';
 
 export const DOC_TYPES: { key: string; label: string; needs: ('incident' | 'action' | 'referral' | 'summons' | 'student' | 'class')[] }[] = [
   { key: 'incident_record', label: 'سجل واقعة سلوكية', needs: ['incident'] },
