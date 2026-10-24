@@ -17,6 +17,13 @@ type ClassReport = {
   records: AttendanceWithStudent[];
 };
 
+// التقرير اليومي يعرض الغائبين فقط (بعذر وبلا عذر)؛ الحاضرون يظهرون في الأعداد دون أسمائهم
+const isAbsent = (r: AttendanceWithStudent) => r.status !== 'حاضر';
+const absenteesOnly = (reports: ClassReport[]): ClassReport[] =>
+  reports
+    .map((r) => ({ ...r, records: r.records.filter(isAbsent) }))
+    .filter((r) => r.records.length > 0);
+
 export default function DailyReport() {
   const { show } = useToast();
   const [selectedDate, setSelectedDate] = useState<string>(toDateString(new Date()));
@@ -122,14 +129,15 @@ export default function DailyReport() {
   }
 
   function handleExportExcel() {
-    if (classReports.length === 0) {
-      show('لا توجد بيانات للتصدير', 'warning');
+    const absent = absenteesOnly(classReports);
+    if (absent.length === 0) {
+      show('لا يوجد غائبون للتصدير', 'warning');
       return;
     }
-    if (viewMode === 'single' && classReports.length === 1) {
-      exportDailyAttendanceToExcel(classReports[0].className, selectedDate, classReports[0].records);
+    if (viewMode === 'single') {
+      exportDailyAttendanceToExcel(absent[0].className, selectedDate, absent[0].records);
     } else {
-      exportAllClassesDailyToExcel(selectedDate, classReports);
+      exportAllClassesDailyToExcel(selectedDate, absent);
     }
     show('تم تصدير التقرير إلى إكسل', 'success');
   }
@@ -286,6 +294,7 @@ export default function DailyReport() {
               const present = cls.records.filter((r) => r.status === 'حاضر').length;
               const excused = cls.records.filter((r) => r.status === 'غائب بعذر').length;
               const unexcused = cls.records.filter((r) => r.status === 'غائب بلا عذر').length;
+              const absentees = cls.records.filter(isAbsent);
               return (
                 <div key={idx} className="card">
                   <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
@@ -306,6 +315,12 @@ export default function DailyReport() {
                     </div>
                   </div>
 
+                  {absentees.length === 0 ? (
+                    <p className="flex items-center gap-2 text-sm text-emerald-700 py-1">
+                      <CheckCircle className="w-4 h-4" />
+                      لا يوجد غائبون — جميع الطلاب حاضرون
+                    </p>
+                  ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -317,7 +332,7 @@ export default function DailyReport() {
                         </tr>
                       </thead>
                       <tbody>
-                        {cls.records.map((record, rIdx) => {
+                        {absentees.map((record, rIdx) => {
                           const colors = STATUS_COLORS[record.status];
                           return (
                             <tr key={record.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -336,6 +351,7 @@ export default function DailyReport() {
                       </tbody>
                     </table>
                   </div>
+                  )}
                 </div>
               );
             })}
